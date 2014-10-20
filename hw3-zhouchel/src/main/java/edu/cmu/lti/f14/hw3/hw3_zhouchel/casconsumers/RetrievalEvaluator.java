@@ -47,12 +47,8 @@ public class RetrievalEvaluator extends CasConsumer_ImplBase {
 
     qIdList = new ArrayList<Integer>();
 
-    // relList = new ArrayList<Integer>();
-
-    // scoreList = new ArrayList<Double>();
-
-    // rankList = new ArrayList<Integer>();
     queryMap = new HashMap<Integer, HashMap<String, Integer>>();
+    
     docMap = new HashMap<Integer, ArrayList<Doc>>();
 
     String output = ((String) getConfigParameterValue(PARAM_OUTPUT)).trim();
@@ -63,9 +59,10 @@ public class RetrievalEvaluator extends CasConsumer_ImplBase {
     }
   }
 
-  /**
-   * TODO :: 1. construct the global word dictionary 2. keep the word frequency for each sentence
-   */
+/**
+ * Process each sentence and classify them as query or document, put them into corresponding dictionary
+ * @see org.apache.uima.collection.base_cpm.CasObjectProcessor#processCas(org.apache.uima.cas.CAS)
+ */
   @Override
   public void processCas(CAS aCas) throws ResourceProcessException {
 
@@ -88,38 +85,50 @@ public class RetrievalEvaluator extends CasConsumer_ImplBase {
 
       // Make sure that your previous annotators have populated this in CAS
       FSList fsTokenList = doc.getTokenList();
+      
+      // convert the FSList to Collection
       ArrayList<Token> tokenList = Utils.fromFSListToCollection(fsTokenList, Token.class);
+      
+      // if this document is a query
       if (doc.getRelevanceValue() == 99) {
-        qIdList.add(queryId);
+        qIdList.add(queryId); // add the query id to qIdList
+        
+        // re-construct the query vector using HashMap
         queryVector = new HashMap<String, Integer>();
         for (Token token : tokenList) {
           queryVector.put(token.getText(), token.getFrequency());
         }
         queryMap.put(queryId, queryVector); // add query to queryMap
-      } else {
+      }
+      // if this document is to be evaluated
+      else { 
+        // re-construct the query vector using HashMap
         docVector = new HashMap<String, Integer>();
         for (Token token : tokenList) {
           docVector.put(token.getText(), token.getFrequency());
         }
 
         ArrayList<Doc> docList = null;
-        if (!docMap.containsKey(queryId)) {
+        if (!docMap.containsKey(queryId)) { // if this is the first document for this query id
           docList = new ArrayList<Doc>();
         } else {
-          docList = docMap.get(queryId);
+          docList = docMap.get(queryId);  // we have handled other documents with the same query id
         }
+        // construct new Doc object, add it to the document list
         docList.add(new Doc(queryId, doc.getRelevanceValue(), doc.getText(), docVector));
-        docMap.put(queryId, docList);
+        docMap.put(queryId, docList); //  add document to docMap
       }
-      // Do something useful here
 
     }
 
   }
   @Override
+  /**
+   * @see org.apache.uima.collection.CasConsumer_ImplBase#destroy()
+   */
   public void destroy() {
     try {
-      writer.close();
+      writer.close(); // close file
     } catch (IOException e) {
       e.printStackTrace();
     }
@@ -142,32 +151,35 @@ public class RetrievalEvaluator extends CasConsumer_ImplBase {
     String output;
     
     for (int i = 0; i < qIdList.size(); i++) {
-      queryId = qIdList.get(i);
-      docList = docMap.get(queryId);
-      queryVector = queryMap.get(queryId);
+      queryId = qIdList.get(i);       // get i th query
+      docList = docMap.get(queryId);  // get all documents that have same query id
+      queryVector = queryMap.get(queryId); // get query vector
+      
+      //compute the cosine similarity measure for each document in document list
       for (Doc doc : docList) {
-        doc.score = computeCosineSimilarity(queryVector, doc.docVector);
+        doc.score = computeCosineSimilarity(queryVector, doc.docVector); 
       }
+      
+      // sort the documents by similarity
       Collections.sort(docList);
+      
+      // write results to output file
       for (int j = 0; j < docList.size(); j++) {
         Doc doc = docList.get(j);
+        
         if (doc.relevance == 1) {
-          output = String.format("coisne=%.4f\trank=%d\tqid=%d\trel=%d\t%s%n",
+          // the rank of retrieved sentence is j + 1
+          output = String.format("cosine=%.4f\trank=%d\tqid=%d\trel=%d\t%s%n",
                   doc.score, (j+1), queryId, doc.relevance, doc.text);
           System.out.print(output);
           writer.write(output);
-          // System.out.println("cosine:" + doc.score+"\t" + "rank=" + (j+1) + "\t" +
-          // "qId:"+doc.queryId +
-          // "\t"+"relevance:"+doc.relevance);
           rrList.add((double) 1 / (j + 1));
           break;
         }
       }
     }
 
-    // TODO :: compute the rank of retrieved sentences
-
-    // TODO :: compute the metric:: mean reciprocal rank
+    // compute the metric:: mean reciprocal rank
     double metric_mrr = compute_mrr(rrList);
     output = String.format("MRR=%.4f", metric_mrr);
     writer.write(output);
@@ -175,32 +187,36 @@ public class RetrievalEvaluator extends CasConsumer_ImplBase {
   }
 
   /**
-   * 
+   * Compute Cosine similarity between a query and a document
    * @return cosine_similarity
    */
   private double computeCosineSimilarity(Map<String, Integer> queryVector,
           Map<String, Integer> docVector) {
     double cosine_similarity = 0.0;
-
-    // TODO :: compute cosine similarity between two sentences
-    double overlap = 0.0, normQuery = 0.0, normDoc = 0.0;
+    double overlap = 0.0; // overlap of two vectors
+    double normQuery = 0.0; // L-2 norm of query vector
+    double normDoc = 0.0;  // L-2 norm of document vector
+    
+    // calculate L-2 norm of query vector and the overlap
     for (String token : queryVector.keySet()) {
       normQuery += Math.pow(queryVector.get(token), 2);
       if (docVector.containsKey(token))
         overlap += queryVector.get(token) * docVector.get(token);
     }
-
+    
+    // calculate L-2 norm of document vector
     for (String token : docVector.keySet()) {
       normDoc += Math.pow(docVector.get(token), 2);
     }
-
+    
+    // compute cosine similarity
     cosine_similarity = overlap / (Math.sqrt(normDoc) * Math.sqrt(normQuery));
 
     return cosine_similarity;
   }
 
   /**
-   * 
+   * Calculate Mean Reciprocal Rank
    * @return mrr
    */
   private double compute_mrr(ArrayList<Double> rrList) {

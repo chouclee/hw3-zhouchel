@@ -7,8 +7,6 @@ import org.apache.uima.analysis_component.JCasAnnotator_ImplBase;
 import org.apache.uima.analysis_engine.AnalysisEngineProcessException;
 import org.apache.uima.cas.FSIterator;
 import org.apache.uima.jcas.JCas;
-import org.apache.uima.jcas.cas.IntegerArray;
-import org.apache.uima.jcas.cas.StringArray;
 import org.apache.uima.jcas.tcas.Annotation;
 import org.apache.uima.jcas.cas.FSList;
 
@@ -47,6 +45,7 @@ public class DocumentVectorAnnotator extends JCasAnnotator_ImplBase {
 	}
 
 	/**
+	 * Create term frequency vector and update the Cas
 	 * 
 	 * @param jcas
 	 * @param doc
@@ -54,13 +53,16 @@ public class DocumentVectorAnnotator extends JCasAnnotator_ImplBase {
 
 	private void createTermFreqVector(JCas jcas, Document doc) {
 
-		String docText = doc.getText();
+		String docText = doc.getText(); // get document text
 		
 		//TO DO: construct a vector of tokens and update the tokenList in CAS
-    //TO DO: use tokenize0 from above 
+    // use tokenize0 from above 
 		List<String> tokens = tokenize0(docText);
+		
+		// use HashMap to store the document vector
 	  HashMap<String, Integer> termFreq = new HashMap<String, Integer>();
 		
+	  // construct the document vector
 		for (String token : tokens) {
 		  if (termFreq.containsKey(token))
 		    termFreq.put(token, termFreq.get(token) + 1);
@@ -68,7 +70,7 @@ public class DocumentVectorAnnotator extends JCasAnnotator_ImplBase {
 		    termFreq.put(token, 1);
 		}
 		
-		
+		// update CAS with above document vector
 		ArrayList<Token> tokenArrayList = new ArrayList<Token>();
 		for (Entry<String, Integer> entry : termFreq.entrySet()) {
 		  Token token = new Token(jcas);
