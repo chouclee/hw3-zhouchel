@@ -3,13 +3,14 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>edu.cmu.lti.11791.f14.hw3</groupId>
 	<artifactId>hw3-zhouchel</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.0.1</version>
 	<scm>
 		<connection>scm:git:git@github.com:choulee/hw3-zhouchel.git
 		</connection>
 		<developerConnection>scm:git:git@github.com:chouclee/hw3-zhouchel.git
 		</developerConnection>
-  	</scm>
+  	  <tag>hw3-zhouchel-0.0.1</tag>
+  </scm>
 	<repositories>
 		<repository>
 			<id>oaqa</id>
