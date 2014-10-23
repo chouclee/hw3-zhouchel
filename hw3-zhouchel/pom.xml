@@ -9,7 +9,6 @@
 		</connection>
 		<developerConnection>scm:git:git@github.com:chouclee/hw3-zhouchel.git
 		</developerConnection>
-  	  <tag>HEAD</tag>
   </scm>
 	<repositories>
 		<repository>
